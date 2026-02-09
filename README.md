@@ -25,3 +25,7 @@ docker compose up -d
 - GET /orders/:id
 - GET /queue/metrics
 ```
+
+## API Externas
+- CEP (ViaCEP): consulta de endereco por CEP na criacao do pedido. Endpoint usado: https://viacep.com.br/ws/{cep}/json/
+- Moeda (Frankfurter): taxas de cambio para conversao dos totais. Endpoint usado: https://api.frankfurter.app/latest?from={BASE}&to=BRL,USD,EUR
