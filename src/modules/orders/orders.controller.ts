@@ -49,7 +49,7 @@ export class QueueController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get('metrics')
-  getMetrics() {
+  async getMetrics() {
     return this.ordersService.getQueueMetrics();
   }
 }
