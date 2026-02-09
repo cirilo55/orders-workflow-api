@@ -16,3 +16,9 @@ Variaveis em [.env](.env):
 ## Subir Postgres
 ```bash
 docker compose up -d
+
+## Endpoints
+- POST /webhook/orders
+- GET /orders?status=received|processing|completed|failed_enrichment
+- GET /orders/:id
+- GET /queue/metrics
