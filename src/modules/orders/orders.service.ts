@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { BadRequestException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderEntity, OrderStatus } from './order.entity';
@@ -8,6 +9,9 @@ import {
   getRatesForCurrency,
   toConvertedPrices,
 } from '../../helpers/exchangeRates';
+import { lookupCep } from '../../helpers/cep';
+import { validateSkus } from '../../helpers/sku';
+import { CustomerEntity } from '../customers/customer.entity';
 
 @Injectable()
 export class OrdersService {
@@ -18,6 +22,8 @@ export class OrdersService {
   constructor(
     @InjectRepository(OrderEntity)
     private readonly ordersRepository: Repository<OrderEntity>,
+    @InjectRepository(CustomerEntity)
+    private readonly customersRepository: Repository<CustomerEntity>,
   ) {}
 
   async create(dto: CreateOrderDto): Promise<OrderEntity> {
@@ -26,7 +32,65 @@ export class OrdersService {
     });
 
     if (existing) {
-      return existing;
+      throw new BadRequestException('Existing order with same key found');
+    }
+
+    const customerInput = dto.customer;
+    let customer = await this.customersRepository.findOne({
+      where: { email: customerInput.email },
+    });
+    let shouldSaveCustomer = false;
+
+    if (!customer) {
+      customer = this.customersRepository.create({
+        email: customerInput.email,
+        name: customerInput.name,
+      });
+      shouldSaveCustomer = true;
+    } else if (customer.name !== customerInput.name) {
+      customer = this.customersRepository.merge(customer, {
+        name: customerInput.name,
+      });
+      shouldSaveCustomer = true;
+    }
+
+    if (customerInput.cep) {
+      const address = await lookupCep(customerInput.cep);
+      if (!address) {
+        throw new BadRequestException('Invalid CEP');
+      }
+      customer = this.customersRepository.merge(customer, {
+        cep: address.cep,
+        state: address.state,
+        city: address.city,
+        street: address.street,
+      });
+      shouldSaveCustomer = true;
+    } else if (
+      customer.cep &&
+      (!customer.state || !customer.city || !customer.street)
+    ) {
+      const address = await lookupCep(customer.cep);
+      if (!address) {
+        throw new BadRequestException('Invalid CEP');
+      }
+      customer = this.customersRepository.merge(customer, {
+        cep: address.cep,
+        state: address.state,
+        city: address.city,
+        street: address.street,
+      });
+      shouldSaveCustomer = true;
+    }
+
+    if (shouldSaveCustomer) {
+      customer = await this.customersRepository.save(customer);
+    }
+
+    const skuResult = validateSkus(dto.items.map((item) => item.sku));
+    if (!skuResult.valid) {
+      const preview = skuResult.invalidSkus.slice(0, 5).join(', ');
+      throw new BadRequestException(`Invalid SKU(s): ${preview}`);
     }
 
     const total = calculateOrderTotal(dto.items);
@@ -58,7 +122,8 @@ export class OrdersService {
 
     const order: OrderEntity = this.ordersRepository.create({
       order_id: dto.order_id,
-      customer: dto.customer,
+      customer_id: customer.id,
+      customer,
       items: dto.items,
       currency: dto.currency,
       idempotency_key: dto.idempotency_key,

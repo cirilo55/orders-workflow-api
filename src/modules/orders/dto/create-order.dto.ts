@@ -2,24 +2,15 @@ import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
-  IsEmail,
-  IsInt,
   IsIn,
   IsNotEmpty,
   IsNumber,
   IsString,
+  IsInt,
   Min,
   ValidateNested,
 } from 'class-validator';
-
-export class CustomerDto {
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-}
+import { CustomerDto } from '../../customers/dto/customer.dto';
 
 export class OrderItemDto {
   @IsString()

@@ -3,14 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
-import {
-  CustomerDto,
-  OrderItemDto,
-  ConvertedPrices,
-} from './dto/create-order.dto';
+import { CustomerEntity } from '../customers/customer.entity';
+import { OrderItemDto, ConvertedPrices } from './dto/create-order.dto';
 
 export enum OrderStatus {
   Received = 'received',
@@ -28,8 +27,14 @@ export class OrderEntity {
   @Column()
   order_id: string;
 
-  @Column({ type: 'jsonb' })
-  customer: CustomerDto;
+  @Column({ name: 'customer_id' })
+  customer_id: string;
+
+  @ManyToOne(() => CustomerEntity, 'orders', {
+    eager: true,
+  })
+  @JoinColumn({ name: 'customer_id' })
+  customer: CustomerEntity;
 
   @Column({ type: 'jsonb' })
   items: OrderItemDto[];
